@@ -1,0 +1,5 @@
+genotype	directory	sample
+WT	salmon_quants_genes	WT_RNAseq_Chris_Rep1_quant
+WT	salmon_quants_genes	WT_RNAseq_Chris_Rep2_quant
+kss	salmon_quants_genes	kss_RNAseq_Chris_Rep1_quant
+kss	salmon_quants_genes	kss_RNAseq_Chris_Rep2_quant
