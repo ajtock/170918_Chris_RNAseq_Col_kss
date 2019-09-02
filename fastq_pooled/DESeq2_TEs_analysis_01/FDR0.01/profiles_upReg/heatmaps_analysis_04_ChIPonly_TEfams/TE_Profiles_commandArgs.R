@@ -121,14 +121,16 @@ for(x in seq_along(superfamNames)) {
   ranLocGR <- GRanges()
   for(i in 1:length(chrs)) {
     targetsGRchr <- targetsGR[seqnames(targetsGR) == chrs[i]]
-    ranLocStartchr <- ranLocStartSelect(coordinates = c((flankSize+max(width(targetsGRchr))+1) :
-                                                        (chrLens[i]-max(width(targetsGRchr))-flankSize)),
-                                        n = length(targetsGRchr))
-    ranLocGRchr <- GRanges(seqnames = chrs[i],
-                           ranges = IRanges(start = ranLocStartchr,
-                                            width = width(targetsGRchr)),
-                           strand = strand(targetsGRchr))
-    ranLocGR <- append(ranLocGR, ranLocGRchr)
+    if(length(targetsGRchr) > 0) {
+      ranLocStartchr <- ranLocStartSelect(coordinates = c((flankSize+max(width(targetsGRchr))+1) :
+                                                          (chrLens[i]-max(width(targetsGRchr))-flankSize)),
+                                          n = length(targetsGRchr))
+      ranLocGRchr <- GRanges(seqnames = chrs[i],
+                             ranges = IRanges(start = ranLocStartchr,
+                                              width = width(targetsGRchr)),
+                             strand = strand(targetsGRchr))
+      ranLocGR <- append(ranLocGR, ranLocGRchr)
+   }
   }
   stopifnot(identical(sort(width(targetsGR)), sort(width(ranLocGR))))
   
@@ -171,9 +173,11 @@ for(x in seq_along(superfamNames)) {
   for(i in 1:length(chrs)) {
     nonDEtargetsGRchr <- nonDEtargetsGR[seqnames(nonDEtargetsGR) == chrs[i]]
     targetsGRchr <- targetsGR[seqnames(targetsGR) == chrs[i]]
-    ranNonDEtargetsGRchr <- ranNonDEtargetsSelect(nonDEtargetsGR = nonDEtargetsGRchr,
-                                                  n = length(targetsGRchr))
-    ranNonDEtargetsGR <- append(ranNonDEtargetsGR, ranNonDEtargetsGRchr)
+    if(length(targetsGRchr) > 0) {
+      ranNonDEtargetsGRchr <- ranNonDEtargetsSelect(nonDEtargetsGR = nonDEtargetsGRchr,
+                                                    n = length(targetsGRchr))
+      ranNonDEtargetsGR <- append(ranNonDEtargetsGR, ranNonDEtargetsGRchr)
+    }
   }
   print(length(ranNonDEtargetsGR))
   
