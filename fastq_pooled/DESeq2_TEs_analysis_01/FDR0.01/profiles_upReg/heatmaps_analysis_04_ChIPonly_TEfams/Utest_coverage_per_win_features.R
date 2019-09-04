@@ -7,10 +7,14 @@
 
 # Usage from within parent directory containing "matrices" directory
 # of window coverage files
-# ./Utest_coverage_per_win_features.R REC8_HA_Rep2 kss_REC8_HA_Rep1 2000 2kb 20 20bp 0.1 Copia_LTR
+# ./Utest_coverage_per_win_features.R REC8_HA_Rep2 kss_REC8_HA_Rep1 'wt REC8-HA_Rep2,kss REC8-HA_Rep1' 'red,red4' 2000 2kb 20 20bp 0.1 Copia_LTR
 
 #geno1Name <- "REC8_HA_Rep2"
 #geno2Name <- "kss_REC8_HA_Rep1"
+#libNamesPlot <- unlist(strsplit("wt REC8-HA_Rep2,kss REC8-HA_Rep1",
+#                                split = ","))
+#colours <- unlist(strsplit("red,red4",
+#                           split = ","))
 #flankSize <- 2000
 #flankName <- "2kb"
 #winSize <- 20
@@ -22,13 +26,17 @@
 args <- commandArgs(trailingOnly = TRUE)
 geno1Name <- args[1]
 geno2Name <- args[2]
-flankSize <- as.numeric(args[3])
-flankName <- as.character(args[4])
-winSize <- as.numeric(args[5])
-winName <- as.character(args[6])
-FDR <- as.numeric(args[7])
+libNamesPlot <- unlist(strsplit(args[3],
+                                split = ","))
+colours <- unlist(strsplit(args[4],
+                           split = ","))
+flankSize <- as.numeric(args[5])
+flankName <- as.character(args[6])
+winSize <- as.numeric(args[7])
+winName <- as.character(args[8])
+FDR <- as.numeric(args[9])
 FDRname <- paste0("FDR", as.character(FDR))
-featureName <- args[8]
+featureName <- args[10]
 
 library(MASS) 
 
@@ -221,20 +229,20 @@ genotype_normal_F2 <- sapply(seq_along(genotype_normal), function(x) {
 })
 
 
-# poisson
-genotype_poisson <- lapply(seq_along(geno1_matList[[1]]), function(x) {
-  glm(formula = c(geno1_matList[[1]][[x]], geno2_matList[[1]][[x]]) ~ genotype,
-      family = poisson(link = "log"))
-})
+## poisson
+#genotype_poisson <- lapply(seq_along(geno1_matList[[1]]), function(x) {
+#  glm(formula = c(geno1_matList[[1]][[x]], geno2_matList[[1]][[x]]) ~ genotype,
+#      family = poisson(link = "log"))
+#})
 #Error in eval(family$initialize) :
 #  negative values not allowed for the 'Poisson' family
 
 
-# Negative binomial (to account for overdispersion)
-genotype_negbin <- lapply(seq_along(geno1_matList[[1]]), function(x) {
-  glm.nb(formula = c(geno1_matList[[1]][[x]], geno2_matList[[1]][[x]]) ~ genotype,
-         control = glm.control(maxit = 2000))
-})
+## Negative binomial (to account for overdispersion)
+#genotype_negbin <- lapply(seq_along(geno1_matList[[1]]), function(x) {
+#  glm.nb(formula = c(geno1_matList[[1]][[x]], geno2_matList[[1]][[x]]) ~ genotype,
+#         control = glm.control(maxit = 2000))
+#})
 #Error in eval(family$initialize) :
 #  negative values not allowed for the 'Poisson' family
 
@@ -251,11 +259,11 @@ Utests_feature <- lapply(seq_along(geno1_matList[[1]]), function(x) {
               alternative = "two.sided")
 })
 # "cannot compute exact p-value with ties"
-UtestPvals_feature <- sapply(seq_along(Utests), function(x) {
-  Utests[[x]]$p.val
+UtestPvals_feature <- sapply(seq_along(Utests_feature), function(x) {
+  Utests_feature[[x]]$p.val
 })
 # Adjust P-values by applying the Benjamini-Hochberg multiple testing correction
-UtestAdjPvals_feature <- p.adjust(p = UtestPvals, method = "BH")
+UtestAdjPvals_feature <- p.adjust(p = UtestPvals_feature, method = "BH")
 
 # ranLoc
 Utests_ranLoc <- lapply(seq_along(geno1_matList[[2]]), function(x) {
@@ -264,11 +272,11 @@ Utests_ranLoc <- lapply(seq_along(geno1_matList[[2]]), function(x) {
               alternative = "two.sided")
 })
 # "cannot compute exact p-value with ties"
-UtestPvals_ranLoc <- sapply(seq_along(Utests), function(x) {
-  Utests[[x]]$p.val
+UtestPvals_ranLoc <- sapply(seq_along(Utests_ranLoc), function(x) {
+  Utests_ranLoc[[x]]$p.val
 })
 # Adjust P-values by applying the Benjamini-Hochberg multiple testing correction
-UtestAdjPvals_ranLoc <- p.adjust(p = UtestPvals, method = "BH")
+UtestAdjPvals_ranLoc <- p.adjust(p = UtestPvals_ranLoc, method = "BH")
 
 
 # Calculate difference in coverage between geno2 and geno1 as
@@ -282,6 +290,16 @@ propChange_ranLoc <- sapply(seq_along(geno1_matList[[2]]), function(x) {
   ( as.vector(colMeans(geno2_matList[[2]])[x]) -
     as.vector(colMeans(geno1_matList[[2]])[x]) ) /
     as.vector(colMeans(geno1_matList[[2]])[x])
+})
+
+# Calculate log2(geno2/geno1)
+log2FC_feature <- sapply(seq_along(geno1_matList[[1]]), function(x) {
+  log2( as.vector(colMeans(geno2_matList[[1]])[x]) /
+        as.vector(colMeans(geno1_matList[[1]])[x]) )
+})
+log2FC_ranLoc <- sapply(seq_along(geno1_matList[[2]]), function(x) {
+  log2( as.vector(colMeans(geno2_matList[[2]])[x]) /
+        as.vector(colMeans(geno1_matList[[2]])[x]) )
 })
 
 # Function for plotting average coverage profiles
@@ -303,17 +321,16 @@ plotAvgCov <- function(dat1, dat2,
         y = dat2, col = col2,
         type = "l", lwd = 3)
   mtext(side = 3, line = 0.5, cex = 0.8, text = mainTitle)
-  axis(side = 2, at = pretty(c(dat1, dat2, ran1, ran2)), lwd = 2, cex.axis = 0.7)
-  mtext(side = 2, line = 2.0, cex = 0.8,
-        text = bquote("Normalized ChIP" ~
-                      .(as.character(winSize)) ~ "bp"^-1))
+  axis(side = 2, at = pretty(c(dat1, dat2, ran1, ran2)), lwd = 2, cex.axis = 0.8)
+  mtext(side = 2, line = 1.75, cex = 1.0,
+        text = bquote("Normalized ChIP"))
   axis(side = 1, lwd = 2,
        at = c(1,
               (flankSize/winSize),
               length(dat1) - (flankSize/winSize),
               length(dat1)),
        labels = c("", "", "", ""))
-  mtext(side = 1, line = 0.5, cex = 0.7,
+  mtext(side = 1, line = 0.5, cex = 0.8,
         at = c(1,
                (flankSize/winSize),
                length(dat1) - (flankSize/winSize),
@@ -331,49 +348,51 @@ plotAvgCov <- function(dat1, dat2,
 
 # Function to plot profile of -log10-transformed adjusted P-values and
 # diffrence between kss and wt coverage as a proportion of wt coverage
-minusLog10AdjPvalEstimatePlot <- function(AdjPvals, ests,
+minusLog10AdjPvalEstimatePlot <- function(AdjPvals1, ests1,
+                                          AdjPvals2, ests2,
                                           AdjPvalsCol, estsCol,
                                           mainTitle,
                                           flankSize, winSize,
                                           flankLabL, flankLabR,
                                           startLab, endLab) {
-  plot(x = 1:length(AdjPvals),
-       y = -log10(AdjPvals), col = AdjPvalsCol,
+  plot(x = 1:length(AdjPvals1),
+       y = -log10(AdjPvals1), col = AdjPvalsCol,
        type = "l", lwd = 3, ann = F,
        ylim = c(0,
-                pmax(-log10(0.05), max(-log10(AdjPvals), na.rm = T))),
+                pmax(-log10(0.05), max(c(-log10(AdjPvals1), -log10(AdjPvals2)), na.rm = T))),
        xaxt = "n", yaxt = "n")
-  mtext(side = 3, line = 0.5, cex = 0.8, text = mainTitle)
-  mtext(side = 2, line = 2.0, cex = 0.8, col = AdjPvalsCol,
+  mtext(side = 3, line = 0.5, cex = 1.0, text = mainTitle)
+  mtext(side = 2, line = 1.75, cex = 1.0, col = AdjPvalsCol,
         text = bquote("-Log"[10]*"(BH-adjusted "*italic("P")*"-value)"))
-  axis(side = 2, cex.axis = 0.7, lwd = 2)
+  axis(side = 2, cex.axis = 0.8, lwd = 2)
   abline(h = -log10(0.1), lty = 5, lwd = 2, col = AdjPvalsCol)
   par(new = T)
-  plot(x = 1:length(ests),
-       y = ests, col = estsCol,
+  plot(x = 1:length(ests1),
+       y = ests1, col = estsCol,
        type = "l", lwd = 3,
-       ylim = c(min(ests), max(ests)),
+       ylim = c(min(c(ests1, ests2)), max(c(ests1, ests2))),
        xlab = "", ylab = "",
        xaxt = "n", yaxt = "n",
        main = "",
        cex.main = 1)
   p <- par('usr')
-  text(p[2], mean(p[3:4]), cex = 1, adj = c(0.5, -3), xpd = NA, srt = -90, col = estsCol,
-       labels = bquote("Change in" ~ italic("kss")))
-  axis(side = 4, cex.axis = 0.7, lwd = 2)
+  text(p[2], mean(p[3:4]), cex = 1.2, adj = c(0.5, -2), xpd = NA, srt = -90, col = estsCol,
+       labels = bquote("Log"[2] *
+                       "(" * italic("kss") * "/wt)"))
+  axis(side = 4, cex.axis = 0.8, lwd = 2)
   axis(side = 1, lwd = 2,
        at = c(1,
               (flankSize/winSize),
-              length(AdjPvals) - (flankSize/winSize),
-              length(AdjPvals)),
+              length(AdjPvals1) - (flankSize/winSize),
+              length(AdjPvals1)),
        labels = c("", "", "", ""))
-  mtext(side = 1, line = 0.5, cex = 0.7,
+  mtext(side = 1, line = 0.5, cex = 0.8,
         at = c(1,
                (flankSize/winSize),
-               length(AdjPvals) - (flankSize/winSize),
-               length(AdjPvals)),
+               length(AdjPvals1) - (flankSize/winSize),
+               length(AdjPvals1)),
         text = c(flankLabL, startLab, endLab, flankLabR))
-  abline(v = c((flankSize/winSize), length(AdjPvals)-(flankSize/winSize)), lty = 3, lwd = 2)
+  abline(v = c((flankSize/winSize), length(AdjPvals1)-(flankSize/winSize)), lty = 3, lwd = 2)
   box(lwd = 2)
 }
 
@@ -386,13 +405,13 @@ pdf(paste0(plotDir, geno1Name, "_v_", geno2Name,
     height = 8, width = 9)
 par(mfrow = c(2, 2))
 par(mar = c(2.1, 3.3, 2.1, 3.3))
-par(mgp = c(2.25, 0.75, 0))
+par(mgp = c(3.0, 0.75, 0))
 plotAvgCov(dat1 = colMeans(geno1_matList[[1]]),
            dat2 = colMeans(geno2_matList[[1]]),
            ran1 = colMeans(geno1_matList[[2]]),
            ran2 = colMeans(geno2_matList[[2]]),
-           col1 = "red",
-           col2 = "red4",
+           col1 = colours[1],
+           col2 = colours[2],
            mainTitle = bquote("Upregulated" ~ .(featureName) ~
                               "(" * italic("n") ~ "=" ~
                               .(prettyNum(dim(geno1_matList[[1]])[1],
@@ -405,13 +424,17 @@ plotAvgCov(dat1 = colMeans(geno1_matList[[1]]),
            startLab = "Start",
            endLab = "End",
            legendLoc = "topleft",
-           legendLabs = c(geno1Name, geno2Name))
+           legendLabs = c(bquote(.(libNamesPlot[1])),
+                          as.expression(bquote(italic(.(unlist(strsplit(libNamesPlot[2],
+                                                                        split = " "))[1])) ~
+                                               .(unlist(strsplit(libNamesPlot[2],
+                                                                 split = " "))[2])))))
 plotAvgCov(dat1 = colMeans(geno1_matList[[2]]),
            dat2 = colMeans(geno2_matList[[2]]),
            ran1 = colMeans(geno1_matList[[1]]),
            ran2 = colMeans(geno2_matList[[1]]),
-           col1 = "red",
-           col2 = "red4",
+           col1 = colours[1],
+           col2 = colours[2],
            mainTitle = bquote("Non-DE" ~ .(featureName) ~
                               "(" * italic("n") ~ "=" ~
                               .(prettyNum(dim(geno1_matList[[2]])[1],
@@ -424,11 +447,17 @@ plotAvgCov(dat1 = colMeans(geno1_matList[[2]]),
            startLab = "Start",
            endLab = "End",
            legendLoc = "topleft",
-           legendLabs = c(geno1Name, geno2Name))
-minusLog10AdjPvalEstimatePlot(AdjPvals = UtestAdjPvals_feature,
-                              ests = propChange_feature,
-                              AdjPvalsCol = "darkorange",
-                              estsCol = "dodgerblue",
+           legendLabs = c(bquote(.(libNamesPlot[1])),
+                          as.expression(bquote(italic(.(unlist(strsplit(libNamesPlot[2],
+                                                                        split = " "))[1])) ~
+                                               .(unlist(strsplit(libNamesPlot[2],
+                                                                 split = " "))[2])))))
+minusLog10AdjPvalEstimatePlot(AdjPvals1 = UtestAdjPvals_feature,
+                              AdjPvals2 = UtestAdjPvals_ranLoc,
+                              ests1 = log2FC_feature,
+                              ests2 = log2FC_ranLoc,
+                              AdjPvalsCol = "purple",
+                              estsCol = "forestgreen",
                               mainTitle = bquote("Upregulated" ~ .(featureName) ~
                                                  "(" * italic("n") ~ "=" ~
                                                  .(prettyNum(dim(geno1_matList[[1]])[1],
@@ -440,10 +469,12 @@ minusLog10AdjPvalEstimatePlot(AdjPvals = UtestAdjPvals_feature,
                               flankLabR = paste0("+", as.character(flankSize/1000), " kb"),
                               startLab = "Start",
                               endLab = "End")
-minusLog10AdjPvalEstimatePlot(AdjPvals = UtestAdjPvals_ranLoc,
-                              ests = propChange_ranLoc,
-                              AdjPvalsCol = "darkorange",
-                              estsCol = "dodgerblue",
+minusLog10AdjPvalEstimatePlot(AdjPvals1 = UtestAdjPvals_ranLoc,
+                              AdjPvals2 = UtestAdjPvals_feature,
+                              ests1 = log2FC_ranLoc,
+                              ests2 = log2FC_feature,
+                              AdjPvalsCol = "purple",
+                              estsCol = "forestgreen",
                               mainTitle = bquote("Non-DE" ~ .(featureName) ~
                                                  "(" * italic("n") ~ "=" ~
                                                  .(prettyNum(dim(geno1_matList[[2]])[1],
